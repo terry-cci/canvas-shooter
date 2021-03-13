@@ -1,45 +1,45 @@
+import { Size } from "./components/utils";
+import "./style.css";
+
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d");
 
-const canvasSize = {
-  width: 400,
-  height: 600,
-};
-
-const shooterSize = {
-  width: 40,
-  height: 40,
-};
-
-const bulletSize = {
-  width: 8,
-  height: 8,
-};
+const canvasSize = new Size(400, 600);
+const shooterSize = new Size(40, 40);
+const bulletSize = new Size(8, 8);
 
 let canvasRect = canvas.getBoundingClientRect();
-let lastPaint = new Date();
-
+let lastPaint = 0;
 const bullets: Bullet[] = [];
 
+let mouseDebug = { x: 0, y: 0 };
+
 class Shooter {
-  x = canvasSize.width / 2 - shooterSize.width / 2;
-  y = canvasSize.height - shooterSize.height;
+  x = canvasSize.w / 2 - shooterSize.w / 2;
+  y = canvasSize.h - shooterSize.h;
 
   constructor() {
     document.body.addEventListener("mousemove", this.handleMove.bind(this));
     document.body.addEventListener("click", this.handleMove.bind(this));
     document.body.addEventListener("click", this.handleShoot.bind(this));
+    canvas.addEventListener("contextmenu", (e) => {
+      this.handleShoot();
+      e.preventDefault();
+    });
   }
 
   public handleMove(e: MouseEvent) {
-    this.x = e.clientX - canvasRect.x;
+    mouseDebug.x = e.clientX - canvasRect.x;
+    mouseDebug.y = e.clientY - canvasRect.y;
+
+    this.x = e.clientX - canvasRect.x - shooterSize.w / 2;
     this.x = Math.max(this.x, 0);
-    this.x = Math.min(this.x, canvasSize.width - shooterSize.width);
-    draw();
+    this.x = Math.min(this.x, canvasSize.w - shooterSize.w);
+    requestAnimationFrame(draw);
   }
 
   public handleShoot() {
-    bullets.push(new Bullet(this.x + shooterSize.width / 2));
+    bullets.push(new Bullet(this.x + shooterSize.w / 2));
     requestAnimationFrame(draw);
   }
 }
@@ -60,8 +60,8 @@ window.addEventListener("resize", () => {
 
 function draw() {
   if (ctx) {
-    const now = new Date();
-    const dt = Number(now) - Number(lastPaint);
+    const now = performance.now();
+    const dt = now - lastPaint;
 
     // background
     ctx.fillStyle = "#eee";
@@ -69,14 +69,12 @@ function draw() {
 
     // shooter
     ctx.fillStyle = "#555";
-    ctx.fillRect(shooter.x, shooter.y, shooterSize.width, shooterSize.height);
+    ctx.fillRect(shooter.x, shooter.y, shooterSize.w, shooterSize.h);
 
     // bullets
-    if (bullets.length) requestAnimationFrame(draw);
-
     bullets.forEach((b, i) => {
       ctx.strokeStyle = "#777";
-      ctx.lineWidth = bulletSize.width;
+      ctx.lineWidth = bulletSize.w;
       ctx.lineCap = "square";
 
       ctx.beginPath();
@@ -89,7 +87,21 @@ function draw() {
       if (b.y < 0) bullets.splice(i, 1);
     });
 
+    //  mouse debug
+    ctx.strokeStyle = "#ff000022";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(mouseDebug.x, 0);
+    ctx.lineTo(mouseDebug.x, canvasSize.h);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, mouseDebug.y);
+    ctx.lineTo(canvasSize.w, mouseDebug.y);
+    ctx.stroke();
+
     lastPaint = now;
+    requestAnimationFrame(draw);
   }
 }
 

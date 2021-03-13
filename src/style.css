@@ -16,5 +16,9 @@ body {
 canvas {
   border: 3px solid wheat;
   border-radius: 10px;
+
   box-shadow: 8px 8px 20px #222;
+  background: #ccc;
+
+  cursor: none;
 }
