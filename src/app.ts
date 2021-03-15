@@ -1,109 +1,134 @@
-import { Size } from "./components/utils";
+import { DisplayElement, Entity } from "./components/displayElement";
+import { Size, Vector } from "./components/utils";
 import "./style.css";
-
-const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-const ctx = canvas.getContext("2d");
 
 const canvasSize = new Size(400, 600);
 const shooterSize = new Size(40, 40);
 const bulletSize = new Size(8, 8);
 
-let canvasRect = canvas.getBoundingClientRect();
-let lastPaint = 0;
-const bullets: Bullet[] = [];
-
-let mouseDebug = { x: 0, y: 0 };
-
-class Shooter {
-  x = canvasSize.w / 2 - shooterSize.w / 2;
-  y = canvasSize.h - shooterSize.h;
-
+class Shooter extends Entity {
   constructor() {
+    super(
+      new Vector(
+        canvasSize.w / 2 - shooterSize.w / 2,
+        canvasSize.h - shooterSize.h
+      ),
+      new Vector(0, 0)
+    );
+
     document.body.addEventListener("mousemove", this.handleMove.bind(this));
     document.body.addEventListener("click", this.handleMove.bind(this));
     document.body.addEventListener("click", this.handleShoot.bind(this));
-    canvas.addEventListener("contextmenu", (e) => {
+
+    Game.canvas.addEventListener("contextmenu", (e) => {
       this.handleShoot();
       e.preventDefault();
     });
   }
 
-  public handleMove(e: MouseEvent) {
-    mouseDebug.x = e.clientX - canvasRect.x;
-    mouseDebug.y = e.clientY - canvasRect.y;
-
-    this.x = e.clientX - canvasRect.x - shooterSize.w / 2;
-    this.x = Math.max(this.x, 0);
-    this.x = Math.min(this.x, canvasSize.w - shooterSize.w);
-    requestAnimationFrame(draw);
+  private handleMove(e: MouseEvent) {
+    this.pos.x = e.clientX - Game.rect.x - shooterSize.w / 2;
+    this.pos.x = Math.max(this.pos.x, 0);
+    this.pos.x = Math.min(this.pos.x, canvasSize.w - shooterSize.w);
   }
 
-  public handleShoot() {
-    bullets.push(new Bullet(this.x + shooterSize.w / 2));
-    requestAnimationFrame(draw);
+  private handleShoot() {
+    Game.bullets.push(new Bullet(this.pos.x + shooterSize.w / 2));
+  }
+
+  public render() {
+    Game.ctx.fillStyle = "#555";
+    Game.ctx.fillRect(this.pos.x, this.pos.y, shooterSize.w, shooterSize.h);
   }
 }
 
-class Bullet {
-  x: number;
-  y = shooter.y;
-  dy: number = -400;
-
+class Bullet extends Entity {
   constructor(x: number) {
-    this.x = x;
+    super(new Vector(x, shooter.pos.y), new Vector(0, -450));
+  }
+
+  public render() {
+    Game.ctx.strokeStyle = "#777";
+    Game.ctx.lineWidth = bulletSize.w;
+    Game.ctx.lineCap = "square";
+
+    Game.ctx.beginPath();
+    Game.ctx.moveTo(this.pos.x, this.pos.y);
+    Game.ctx.lineTo(this.pos.x, this.pos.y);
+    Game.ctx.stroke();
   }
 }
 
-window.addEventListener("resize", () => {
-  canvasRect = canvas.getBoundingClientRect();
-});
+class Crosshair extends DisplayElement {
+  constructor(pos: Vector) {
+    super(pos);
+    document.addEventListener("mousemove", this.handleMove.bind(this));
+  }
+  render() {
+    Game.ctx.strokeStyle = "#ff000022";
+    Game.ctx.lineWidth = 1;
+    Game.ctx.beginPath();
+    Game.ctx.moveTo(this.pos.x, 0);
+    Game.ctx.lineTo(this.pos.x, canvasSize.h);
+    Game.ctx.stroke();
 
-function draw() {
-  if (ctx) {
+    Game.ctx.beginPath();
+    Game.ctx.moveTo(0, this.pos.y);
+    Game.ctx.lineTo(canvasSize.w, this.pos.y);
+    Game.ctx.stroke();
+  }
+
+  private handleMove(e: MouseEvent) {
+    this.pos.x = e.clientX - Game.rect.x;
+    this.pos.y = e.clientY - Game.rect.y;
+  }
+}
+
+class Game {
+  static canvas: HTMLCanvasElement;
+  static ctx: CanvasRenderingContext2D;
+  static rect: DOMRect;
+  static bullets: Bullet[] = [];
+
+  lastPaint = 0;
+
+  constructor() {
+    Game.canvas = document.getElementById("canvas") as HTMLCanvasElement;
+    Game.ctx = Game.canvas.getContext("2d") as CanvasRenderingContext2D;
+
+    window.addEventListener("resize", this.onResize.bind(this));
+    this.onResize();
+  }
+
+  private onResize() {
+    Game.rect = Game.canvas.getBoundingClientRect();
+  }
+
+  public render() {
     const now = performance.now();
-    const dt = now - lastPaint;
+    const dt = now - this.lastPaint;
 
     // background
-    ctx.fillStyle = "#eee";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    Game.ctx.fillStyle = "#eee";
+    Game.ctx.fillRect(0, 0, Game.canvas.width, Game.canvas.height);
 
-    // shooter
-    ctx.fillStyle = "#555";
-    ctx.fillRect(shooter.x, shooter.y, shooterSize.w, shooterSize.h);
+    crosshair.render();
 
     // bullets
-    bullets.forEach((b, i) => {
-      ctx.strokeStyle = "#777";
-      ctx.lineWidth = bulletSize.w;
-      ctx.lineCap = "square";
-
-      ctx.beginPath();
-      ctx.moveTo(b.x, b.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-
-      b.y += b.dy * (dt / 1000);
-
-      if (b.y < 0) bullets.splice(i, 1);
+    Game.bullets.forEach((b, i) => {
+      b.render();
+      b.move(dt);
+      if (b.pos.y < 0) Game.bullets.splice(i, 1);
     });
 
-    //  mouse debug
-    ctx.strokeStyle = "#ff000022";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(mouseDebug.x, 0);
-    ctx.lineTo(mouseDebug.x, canvasSize.h);
-    ctx.stroke();
+    shooter.render();
 
-    ctx.beginPath();
-    ctx.moveTo(0, mouseDebug.y);
-    ctx.lineTo(canvasSize.w, mouseDebug.y);
-    ctx.stroke();
-
-    lastPaint = now;
-    requestAnimationFrame(draw);
+    this.lastPaint = now;
+    requestAnimationFrame(this.render.bind(this));
   }
 }
 
+const game = new Game();
+const crosshair = new Crosshair(new Vector(0, 0));
 const shooter = new Shooter();
-draw();
+game.render();
