@@ -22,3 +22,19 @@ canvas {
 
   cursor: none;
 }
+
+#hint {
+  position: absolute;
+  opacity: 0.25;
+  font-family: consolas, "Courier New", Courier, monospace;
+  text-align: center;
+  user-select: none;
+  pointer-events: none;
+}
+
+#copyright {
+  position: absolute;
+  right: 1em;
+  bottom: 0.5em;
+  color: #aaa;
+}

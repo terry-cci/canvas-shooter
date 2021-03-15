@@ -43,8 +43,12 @@ export class Vector {
   }
 
   public sub(v: Vector) {
-    this.add(v.mtp(-1));
+    this.add(Vector.clone(v).mtp(-1));
 
     return this;
+  }
+
+  public get size() {
+    return Math.sqrt(this.x * this.x + this.y * this.y);
   }
 }
