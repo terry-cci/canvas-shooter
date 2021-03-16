@@ -1,9 +1,4 @@
-import {
-  DisplayElement,
-  Entity,
-  Hitbox,
-  Hittable,
-} from "./components/displayElement";
+import { Entity, Hitbox, Hittable } from "./components/displayElement";
 import { Size, Vector } from "./components/utils";
 import "./style.css";
 
@@ -20,28 +15,6 @@ class Shooter extends Entity {
         canvasSize.h - shooterSize.h
       ),
     });
-
-    document.body.addEventListener("mousemove", this.handleMove.bind(this));
-    document.body.addEventListener("click", this.handleMove.bind(this));
-    document.body.addEventListener("click", this.handleShoot.bind(this));
-    document.body.addEventListener("keydown", (e) => {
-      if (!e.repeat) this.handleShoot();
-    });
-
-    Game.canvas.addEventListener("contextmenu", (e) => {
-      this.handleShoot();
-      e.preventDefault();
-    });
-  }
-
-  private handleMove(e: MouseEvent) {
-    this.pos.x = e.clientX - Game.rect.x - shooterSize.w / 2;
-    this.pos.x = Math.max(this.pos.x, 0);
-    this.pos.x = Math.min(this.pos.x, canvasSize.w - shooterSize.w);
-  }
-
-  private handleShoot() {
-    Game.bullets.push(new Bullet(this.pos.x + shooterSize.w / 2));
   }
 
   public render() {
@@ -56,9 +29,9 @@ class Enemy extends Hittable {
       pos,
       vel: new Vector(0, 50),
       accl: new Vector(0, 50),
-      mass: 0.2,
+      mass: 20,
       hp: 7,
-      maxVel: 50,
+      maxVel: 75,
     });
 
     this.hitbox.push(
@@ -73,8 +46,10 @@ class Enemy extends Hittable {
 }
 
 class Bullet extends Entity {
+  hit = false;
+
   constructor(x: number) {
-    super({ pos: new Vector(x, shooter.pos.y), vel: new Vector(0, -900) });
+    super({ pos: new Vector(x, shooter.pos.y), vel: new Vector(0, -600) });
   }
 
   public render() {
@@ -89,30 +64,30 @@ class Bullet extends Entity {
   }
 }
 
-class Crosshair extends DisplayElement {
-  constructor(pos: Vector) {
-    super({ pos });
-    document.addEventListener("mousemove", this.handleMove.bind(this));
-  }
-  render() {
-    Game.ctx.strokeStyle = "#ff000022";
-    Game.ctx.lineWidth = 1;
-    Game.ctx.beginPath();
-    Game.ctx.moveTo(this.pos.x, 0);
-    Game.ctx.lineTo(this.pos.x, canvasSize.h);
-    Game.ctx.stroke();
+// class Crosshair extends DisplayElement {
+//   constructor(pos: Vector) {
+//     super({ pos });
+//     document.addEventListener("mousemove", this.handleMove.bind(this));
+//   }
+//   render() {
+//     Game.ctx.strokeStyle = "#ff000022";
+//     Game.ctx.lineWidth = 1;
+//     Game.ctx.beginPath();
+//     Game.ctx.moveTo(this.pos.x, 0);
+//     Game.ctx.lineTo(this.pos.x, canvasSize.h);
+//     Game.ctx.stroke();
 
-    Game.ctx.beginPath();
-    Game.ctx.moveTo(0, this.pos.y);
-    Game.ctx.lineTo(canvasSize.w, this.pos.y);
-    Game.ctx.stroke();
-  }
+//     Game.ctx.beginPath();
+//     Game.ctx.moveTo(0, this.pos.y);
+//     Game.ctx.lineTo(canvasSize.w, this.pos.y);
+//     Game.ctx.stroke();
+//   }
 
-  private handleMove(e: MouseEvent) {
-    this.pos.x = e.clientX - Game.rect.x;
-    this.pos.y = e.clientY - Game.rect.y;
-  }
-}
+//   private handleMove(e: MouseEvent) {
+//     this.pos.x = e.clientX - Game.rect.x;
+//     this.pos.y = e.clientY - Game.rect.y;
+//   }
+// }
 
 class Game {
   static canvas: HTMLCanvasElement;
@@ -128,6 +103,14 @@ class Game {
     Game.ctx = Game.canvas.getContext("2d") as CanvasRenderingContext2D;
 
     window.addEventListener("resize", this.onResize.bind(this));
+    document.addEventListener("mousemove", this.handleMove.bind(this));
+    document.addEventListener("click", this.handleMove.bind(this));
+    document.addEventListener("click", this.handleShoot.bind(this));
+    document.addEventListener("keydown", this.handleShoot.bind(this));
+    document.addEventListener("contextmenu", (e) => {
+      this.handleShoot(e);
+      e.preventDefault();
+    });
     this.onResize();
   }
 
@@ -143,6 +126,18 @@ class Game {
     );
   }
 
+  private handleMove(e: MouseEvent) {
+    shooter.pos.x = e.clientX - Game.rect.x - shooterSize.w / 2;
+    shooter.pos.x = Math.max(shooter.pos.x, 0);
+    shooter.pos.x = Math.min(shooter.pos.x, canvasSize.w - shooterSize.w);
+  }
+
+  private handleShoot(e: Event) {
+    if (e instanceof KeyboardEvent && e.repeat) return;
+
+    Game.bullets.push(new Bullet(shooter.pos.x + shooterSize.w / 2));
+  }
+
   public render() {
     const now = performance.now();
     const dt = now - this.lastPaint;
@@ -153,10 +148,10 @@ class Game {
 
     // crosshair.render();
 
-    if (Math.random() > 0.98) this.spawnEnemy();
+    if (Math.random() > 0.985) this.spawnEnemy();
 
     // bullets
-    Game.bullets.forEach((b, i) => {
+    Game.bullets.forEach((b) => {
       b.render();
       b.move(dt);
     });
@@ -164,21 +159,27 @@ class Game {
     Game.bullets = Game.bullets.filter((b) => b.pos.y >= 0);
 
     // enemies
-    this.enemies.forEach((e, i) => {
+    this.enemies.forEach((e) => {
       e.render();
       e.move(dt);
 
       Game.bullets.forEach((b, j) => {
         if (e.collides(b)) {
-          e.vel.add(Vector.clone(b.vel).mtp(dt / e.m / 1000));
-          Game.bullets.splice(j, 1);
+          e.vel = Vector.clone(e.vel)
+            .mtp(e.m)
+            .add(Vector.clone(b.vel))
+            .mtp(1 / e.m);
           e.hp--;
+
+          b.hit = true;
         }
       });
     });
+
     this.enemies = this.enemies.filter(
       (e) => e.pos.y <= canvasSize.h && e.hp > 0
     );
+    Game.bullets = Game.bullets.filter((b) => !b.hit);
 
     shooter.render();
 
@@ -188,7 +189,7 @@ class Game {
 }
 
 const game = new Game();
-const crosshair = new Crosshair(new Vector(0, 0));
+// const crosshair = new Crosshair(new Vector(0, 0));
 const shooter = new Shooter();
 
 game.render();

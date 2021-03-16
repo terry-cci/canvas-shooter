@@ -38,7 +38,7 @@ export abstract class Entity extends DisplayElement {
     this.maxVel = maxVel;
   }
 
-  public move(dt: number) {
+  public move(dt: number): void {
     this.pos.add(Vector.clone(this.vel).mtp(dt / 1000));
     this.vel.add(Vector.clone(this.accl).mtp(dt / 1000));
 
@@ -57,7 +57,7 @@ export class Hitbox {
     this.b = b;
   }
 
-  public includes(v: Vector) {
+  public includes(v: Vector): boolean {
     return (
       Math.min(this.a.x, this.b.x) <= v.x &&
       v.x <= Math.max(this.a.x, this.b.x) &&
@@ -78,7 +78,7 @@ export abstract class Hittable extends Entity {
     this.hp = hp;
   }
 
-  public collides(e: Entity) {
+  public collides(e: Entity): boolean {
     const relPos = Vector.clone(e.pos).sub(this.pos);
     return this.hitbox.some((hb) => hb.includes(relPos));
   }
