@@ -32,6 +32,7 @@ class Enemy extends Hittable {
       mass: 20,
       hp: 7,
       maxVel: 75,
+      hpBarDPos: new Vector(enemySize.w / 2, enemySize.h + 2),
     });
 
     this.hitbox.push(
@@ -64,32 +65,7 @@ class Bullet extends Entity {
   }
 }
 
-// class Crosshair extends DisplayElement {
-//   constructor(pos: Vector) {
-//     super({ pos });
-//     document.addEventListener("mousemove", this.handleMove.bind(this));
-//   }
-//   render() {
-//     Game.ctx.strokeStyle = "#ff000022";
-//     Game.ctx.lineWidth = 1;
-//     Game.ctx.beginPath();
-//     Game.ctx.moveTo(this.pos.x, 0);
-//     Game.ctx.lineTo(this.pos.x, canvasSize.h);
-//     Game.ctx.stroke();
-
-//     Game.ctx.beginPath();
-//     Game.ctx.moveTo(0, this.pos.y);
-//     Game.ctx.lineTo(canvasSize.w, this.pos.y);
-//     Game.ctx.stroke();
-//   }
-
-//   private handleMove(e: MouseEvent) {
-//     this.pos.x = e.clientX - Game.rect.x;
-//     this.pos.y = e.clientY - Game.rect.y;
-//   }
-// }
-
-class Game {
+export class Game {
   static canvas: HTMLCanvasElement;
   static ctx: CanvasRenderingContext2D;
   static rect: DOMRect;
@@ -138,7 +114,7 @@ class Game {
     Game.bullets.push(new Bullet(shooter.pos.x + shooterSize.w / 2));
   }
 
-  public render() {
+  public render(): void {
     const now = performance.now();
     const dt = now - this.lastPaint;
 
@@ -161,6 +137,7 @@ class Game {
     // enemies
     this.enemies.forEach((e) => {
       e.render();
+      e.hpBar.render();
       e.move(dt);
 
       Game.bullets.forEach((b, j) => {
@@ -170,6 +147,8 @@ class Game {
             .add(Vector.clone(b.vel))
             .mtp(1 / e.m);
           e.hp--;
+
+          e.hpBar.show();
 
           b.hit = true;
         }
